@@ -504,8 +504,7 @@ void setup() {
   initDevice();
   if (wakeup_reason == ESP_SLEEP_WAKEUP_TIMER)
   {
-    if (!bIsShowingBattWarning)
-      updateBattWarning();
+    updateBattWarning();
     initSleep(5400, false);
   }
   else if (wakeup_reason == ESP_SLEEP_WAKEUP_EXT0)
