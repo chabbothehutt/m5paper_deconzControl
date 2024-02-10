@@ -371,7 +371,7 @@ static void fetchGroups() {
 
 static void fetchScenes(int GrpIndex) {
   char pathBuffer[64];
-  printf_P(pathBuffer, getScenesOfGrpPath, GrpIndex + 1);
+  sprintf_P(pathBuffer, getScenesOfGrpPath, GrpIndex + 1);
   HTTPClient http;
   Serial.println(pathBuffer);
   if (http.begin(pathBuffer)) {
