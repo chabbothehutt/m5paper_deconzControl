@@ -139,6 +139,16 @@ static void initClock() {
   M5.RTC.setTime(&RTCtime);
 }
 
+
+RTC_DATA_ATTR static int sleepInfoXYWH[4];
+
+static void removeSleepInfo() {
+  Serial.println("Remove \"zZZ\"");
+  M5.EPD.WriteFullGram4bpp((uint8_t*)canvas.frameBuffer());
+  M5.EPD.UpdateArea(sleepInfoXYWH[0], sleepInfoXYWH[1], sleepInfoXYWH[2], sleepInfoXYWH[3], UPDATE_MODE_DU);
+  delay(300);
+}
+
 static void initSleep(const int& seconds, const bool& bDrawzZZ = true, const bool& flush_screen = false) {
   char sleepInfoBuffer[13];
   const int hrBefore = RTCtime.hour;
@@ -178,6 +188,10 @@ static void initSleep(const int& seconds, const bool& bDrawzZZ = true, const boo
     if (bDrawzZZ)
       M5.EPD.UpdateArea(txtXOffset - RenderXOffset, zzzYOffset - RenderYOffset, txtWidth + RenderXOffset, zzzHeight + 3 + RenderYOffset, UPDATE_MODE_GLR16);
     M5.EPD.UpdateArea(txtXOffset - RenderXOffset, timeYOffset - RenderYOffset, txtWidth + RenderXOffset, txtHeight + RenderYOffset, UPDATE_MODE_GLR16);
+    sleepInfoXYWH[0] = txtXOffset - RenderXOffset;
+    sleepInfoXYWH[1] = zzzYOffset - RenderYOffset;
+    sleepInfoXYWH[2] = txtWidth + RenderXOffset;
+    sleepInfoXYWH[3] = zzzHeight + 3 + txtHeight + RenderYOffset;
   }
   delay(500);
 
@@ -318,7 +332,7 @@ static bool FingerCallback(tp_finger_t& FingerItem)
 }
 
 static bool lightSleepWaitForTouch(const int& waitSeconds = 15) {
-  Serial.println("going to doze off!");
+  Serial.println("trying to doze off!");
   delay(50);
 
   esp_sleep_enable_timer_wakeup(waitSeconds * uS_TO_S_FACTOR);
@@ -465,14 +479,6 @@ static void drawData() {
   canvas.pushCanvas(0, 0, UPDATE_MODE_GC16);  //Update that screen.
   delay(700);
   M5.disableEPDPower();
-}
-
-static void removeSleepInfo() {
-  Serial.println("Remove \"zZZ\"");
-  M5.EPD.WriteFullGram4bpp((uint8_t*)canvas.frameBuffer());
-  M5.EPD.UpdateArea(450, 0, 60, 40, UPDATE_MODE_DU);
-  M5.EPD.UpdateArea(390, 40, 150, 20, UPDATE_MODE_DU);
-  delay(300);
 }
 
 void initDevice() {
