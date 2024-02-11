@@ -153,7 +153,6 @@ static void initSleep(const int& seconds, const bool& bDrawzZZ = true, const boo
   char sleepInfoBuffer[13];
   const int hrBefore = RTCtime.hour;
   M5.RTC.getTime(&RTCtime);
-  if(hrBefore > RTCtime.hour)
   M5.RTC.getDate(&RTCDate);
 
   sprintf(sleepInfoBuffer, "%02d.%02d. %02d:%02d", RTCDate.day, RTCDate.mon, RTCtime.hour, RTCtime.min);
