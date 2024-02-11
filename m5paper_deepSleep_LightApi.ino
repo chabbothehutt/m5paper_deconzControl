@@ -24,6 +24,8 @@ REG_ENDPOINTPATH(getScenesOfGrp, groups/%d/scenes);
 REG_ENDPOINTPATH(putActivateLightScenes, groups/%d/scenes/%d/recall);
 REG_ENDPOINTPATH(putSetGroupState, groups/%d/action);
 
+#define INITIAL_GRP 1
+
 const char SSID[] PROGMEM = "";
 const char WIFIPWD[] PROGMEM = "";
 const char BATT_WARNING[] PROGMEM = "Low battery!";
@@ -140,7 +142,6 @@ static void initClock() {
   M5.RTC.setTime(&RTCtime);
 }
 
-
 RTC_DATA_ATTR static int sleepInfoXYWH[4];
 
 static void removeSleepInfo() {
@@ -152,7 +153,6 @@ static void removeSleepInfo() {
 
 static void initSleep(const int& seconds, const bool& bDrawzZZ = true, const bool& flush_screen = false) {
   char sleepInfoBuffer[13];
-  const int hrBefore = RTCtime.hour;
   M5.RTC.getTime(&RTCtime);
   M5.RTC.getDate(&RTCDate);
 
@@ -182,6 +182,7 @@ static void initSleep(const int& seconds, const bool& bDrawzZZ = true, const boo
   M5.enableEPDPower();
   if (flush_screen) {
     canvas.pushCanvas(0, 0, UPDATE_MODE_DU4);
+    delay(500);
   } else {
     const int RenderXOffset = 3;
     const int RenderYOffset = 1;
@@ -194,9 +195,8 @@ static void initSleep(const int& seconds, const bool& bDrawzZZ = true, const boo
     sleepInfoXYWH[2] = txtWidth + RenderXOffset;
     sleepInfoXYWH[3] = zzzHeight + 3 + txtHeight + RenderYOffset;
   }
-  delay(500);
-
-  Serial.printf("%s%s\n", bDrawzZZ ? "zZZ " : "", sleepInfoBuffer);
+  delay(600);
+  Serial.printf("%s%s%s\n", flush_screen ? "-flush- " : "", bDrawzZZ ? "zZZ " : "", sleepInfoBuffer);
   M5.disableEPDPower();
   esp_sleep_enable_ext0_wakeup(GPIO_NUM_36, LOW);  // TOUCH_INT
   esp_sleep_enable_timer_wakeup(seconds * uS_TO_S_FACTOR);
@@ -287,7 +287,7 @@ static bool FingerCallback_Scns(const int& clickIndex) {
   if (clickIndex == s_ScenesCount[SelectedGroup])  //TOGGLE
   {
     char togglePathBuffer[78];
-    sprintf_P(togglePathBuffer, putSetGroupStatePath, s_GroupIds[SelectedGroup + 1]);
+    sprintf_P(togglePathBuffer, putSetGroupStatePath, s_GroupIds[SelectedGroup]);
     Serial.println(togglePathBuffer);
     if (http.begin(togglePathBuffer)) {
       int putResult = http.PUT("{ \"toggle\" : true }");
@@ -295,19 +295,19 @@ static bool FingerCallback_Scns(const int& clickIndex) {
     }
     else
     {
-      Serial.printf("couldnt open connection to %s => d = %d\n", putSetGroupStatePath, s_GroupIds[SelectedGroup + 1]);
+      Serial.printf("couldnt open connection to %s => d = %d\n", putSetGroupStatePath, s_GroupIds[SelectedGroup]);
     }
   } else {
     char pathBuffer[78];
-    sprintf_P(pathBuffer, putActivateLightScenesPath, s_GroupIds[SelectedGroup + 1], clickIndex + 1);
+    sprintf_P(pathBuffer, putActivateLightScenesPath, s_GroupIds[SelectedGroup], clickIndex + 1);
     Serial.println(pathBuffer);
     if (http.begin(pathBuffer)) {
       int putResult = http.PUT("");
       Serial.printf("recall scene status: %d\n", putResult);
     }
-        else
+    else
     {
-      Serial.printf("couldnt open connection to %s => d1 = %d, d2 = %d\n", putActivateLightScenesPath, s_GroupIds[SelectedGroup + 1], clickIndex + 1);
+      Serial.printf("couldnt open connection to %s => d1 = %d, d2 = %d\n", putActivateLightScenesPath, s_GroupIds[SelectedGroup], clickIndex + 1);
     }
   }
   disconnectWifi();
@@ -368,15 +368,15 @@ static void fetchGroups() {
         }
         const char* grpNam = group["name"];
         Serial.printf("name <%s>\n", grpNam);
-        int iScnIdx = addGroup(grpNam);
-        if (iScnIdx == -1)
+        int iGrpIdx = addGroup(atoi(keyNam), grpNam);
+        if (iGrpIdx == -1)
           break;  //MAX_GROUPS hit -> stop there
         JSONVar scenes = group["scenes"];
         for (int p = 0; p < scenes.length(); ++p) {
           JSONVar scene = scenes[p];
           const char* sceneNam = scene["name"];
           Serial.printf("sc %d name <%s>\n", p + 1, sceneNam);
-          if (addScene(iScnIdx, sceneNam) == false)  //MAX_SCENES hit -> next group
+          if (addScene(iGrpIdx, sceneNam) == false)  //MAX_SCENES hit -> next group
             break;
         }
       }
@@ -520,17 +520,19 @@ void setup() {
     initClock();
     fetchGroups();
     disconnectWifi();
-    SelectedGroup = 2;
+#ifdef INITIAL_GRP
+    SelectedGroup = INITIAL_GRP;
+#endif
     drawData();
   } 
   else
   {
-    if (s_aktGrpIndex != -1 && s_aktScenesCount != 0)  //boot with cached group
+    if (s_aktGrpIndex != -1 && s_aktScenesCount != 0)  //later-boots
     {
       for (int i = 0; i < s_aktScenesCount; ++i) 
       {
         Serial.printf("scene from rtc: %s\n", s_SelScenes[i]);
-        addScene(s_aktGrpIndex, s_SelScenes[i]);
+        addScene(s_aktGrpIndex, s_SelScenes[i]); //from rtc to ram
       }
     }
     if (check_touchUpdate(fingerItm)) 
@@ -551,7 +553,7 @@ void setup() {
       break;
   }
   Serial.println("should go sleeping");
-  initSleep(5400, true, bScreenUpdate);
+  initSleep(5400, true, false);
 }
 
 void loop() {}
