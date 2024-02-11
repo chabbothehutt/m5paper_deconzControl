@@ -62,6 +62,7 @@ static esp_sleep_wakeup_cause_t wakeup_reason;
 static rtc_time_t RTCtime;  //initialization through M5-API (in setup), threfore no Attrubute
 static rtc_date_t RTCDate;
 RTC_DATA_ATTR static int s_GroupCount = 0;
+RTC_DATA_ATTR static int s_GroupIds[MAX_GROUPS];
 RTC_DATA_ATTR static char s_Groups[MAX_GROUPS][NAMELEN];
 RTC_DATA_ATTR static char s_SelScenes[MAX_SCENES_PER_GRP][NAMELEN];
 RTC_DATA_ATTR static int s_aktScenesCount = 0;
@@ -166,11 +167,12 @@ static void initSleep(const int& seconds, const bool& bDrawzZZ = true, const boo
   const int timeYOffset= RHEIGHT - UI_BTN_YMARGIN - txtHeight;
 
   canvas.drawString(sleepInfoBuffer, txtXOffset, timeYOffset);
-  const int zzzYOffset = timeYOffset - zzzHeight - 3;
+  int zzzYOffset = 0;
   if (bDrawzZZ || flush_screen)
   {
     canvas.setFreeFont(&FreeSansBoldOblique12pt7b);
     zzzHeight = canvas.fontHeight();
+    zzzYOffset = timeYOffset - zzzHeight - 3;
     canvas.drawString("z Z Z", txtXOffset, zzzYOffset);
   }
   
@@ -219,10 +221,10 @@ static void disconnectWifi() {
   WiFi.disconnect();
 }
 
-static int addGroup(const char* sGrpNam) {
+static int addGroup(const int& id, const char* sGrpNam) {
   if (s_GroupCount == MAX_GROUPS)
     return -1;
-
+  s_GroupIds[s_GroupCount] = id;
   strlcpy(s_Groups[s_GroupCount], sGrpNam, strlen(sGrpNam) + 1);
   ++s_GroupCount;
   return s_GroupCount - 1;
@@ -285,7 +287,7 @@ static bool FingerCallback_Scns(const int& clickIndex) {
   if (clickIndex == s_ScenesCount[SelectedGroup])  //TOGGLE
   {
     char togglePathBuffer[78];
-    sprintf_P(togglePathBuffer, putSetGroupStatePath, SelectedGroup + 1);
+    sprintf_P(togglePathBuffer, putSetGroupStatePath, s_GroupIds[SelectedGroup + 1]);
     Serial.println(togglePathBuffer);
     if (http.begin(togglePathBuffer)) {
       int putResult = http.PUT("{ \"toggle\" : true }");
@@ -293,11 +295,11 @@ static bool FingerCallback_Scns(const int& clickIndex) {
     }
     else
     {
-      Serial.printf("couldnt open connection to %s => d = %d\n", putSetGroupStatePath, SelectedGroup + 1);
+      Serial.printf("couldnt open connection to %s => d = %d\n", putSetGroupStatePath, s_GroupIds[SelectedGroup + 1]);
     }
   } else {
     char pathBuffer[78];
-    sprintf_P(pathBuffer, putActivateLightScenesPath, SelectedGroup + 1, clickIndex + 1);
+    sprintf_P(pathBuffer, putActivateLightScenesPath, s_GroupIds[SelectedGroup + 1], clickIndex + 1);
     Serial.println(pathBuffer);
     if (http.begin(pathBuffer)) {
       int putResult = http.PUT("");
@@ -305,7 +307,7 @@ static bool FingerCallback_Scns(const int& clickIndex) {
     }
         else
     {
-      Serial.printf("couldnt open connection to %s => d1 = %d, d2 = %d\n", putActivateLightScenesPath, SelectedGroup + 1, clickIndex + 1);
+      Serial.printf("couldnt open connection to %s => d1 = %d, d2 = %d\n", putActivateLightScenesPath, s_GroupIds[SelectedGroup + 1], clickIndex + 1);
     }
   }
   disconnectWifi();
